@@ -1,7 +1,7 @@
 """Plot train/val loss from a CSV written by train.py.
 
 Example:
-    python plot_loss.py --log checkpoints/mythology_model_loss.csv --out assets/loss_curve.png
+    python plot_loss.py --log checkpoints/mythology_model_v2_loss.csv --out assets/loss_curve.png
 """
 import argparse
 import csv
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument('--log', default='checkpoints/mythology_model_loss.csv')
+    p.add_argument('--log', default='checkpoints/mythology_model_v2_loss.csv')
     p.add_argument('--out', default='assets/loss_curve.png')
     args = p.parse_args()
 

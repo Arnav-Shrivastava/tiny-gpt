@@ -1,7 +1,7 @@
 """Character-level GPT (decoder-only Transformer).
 
 Architecture matches the one in experiments/02_gpt_v2.py and the weights in
-checkpoints/mythology_model.pt (a bare state_dict). Based on Andrej Karpathy's
+checkpoints/mythology_model_v2.pt (a bare state_dict; v1 is mythology_model.pt). Based on Andrej Karpathy's
 "Let's build GPT" video / nanoGPT.
 """
 import os
@@ -14,7 +14,7 @@ from torch.nn import functional as F
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_DATA = os.path.join(ROOT, 'data', 'input.txt')
-DEFAULT_CHECKPOINT = os.path.join(ROOT, 'checkpoints', 'mythology_model.pt')
+DEFAULT_CHECKPOINT = os.path.join(ROOT, 'checkpoints', 'mythology_model_v2.pt')
 
 
 @dataclass

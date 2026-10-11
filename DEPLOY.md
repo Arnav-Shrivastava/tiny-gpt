@@ -34,7 +34,7 @@ The 52 MB checkpoint is stored as a normal blob in this repo's git history. Hugg
 ```bash
 huggingface-cli upload YOUR_USER/tinygpt-mythology . . --repo-type space \
   --include "app.py" "model.py" "requirements.txt" "README.md" \
-            "data/input.txt" "checkpoints/mythology_model.pt"
+            "data/input.txt" "checkpoints/mythology_model_v2.pt"
 ```
 
 (On newer versions the command is `hf upload ...`.) Only `app.py`, `model.py`, the data, the checkpoint, `requirements.txt` and `README.md` are needed to run the demo.
