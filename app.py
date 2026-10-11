@@ -40,8 +40,9 @@ def load_model():
 model = load_model()
 
 FEW_SHOT = (
-    "Question: Who is Jupiter? Answer: Jupiter is the king of the gods. \n"
-    "Question: What is Olympus? Answer: Olympus is the mountain home of the deities. \n"
+    "Question: Who is Jupiter? \nAnswer: Jupiter is the king of the gods. \n\n"
+    "Question: What is Olympus? \nAnswer: Olympus is the mountain home of the deities. \n\n"
+    "Question: Who is Apollo? \nAnswer: Apollo is the god of the sun, music, and poetry. \n\n"
 )
 
 
@@ -71,12 +72,42 @@ st.title("Bulfinch's Mythology Q&A")
 
 if 'messages' not in st.session_state:
     st.session_state.messages = []
+if 'pending' not in st.session_state:
+    st.session_state.pending = None
+
+n_params = sum(p.numel() for p in model.parameters())
+
+with st.sidebar:
+    st.header("About this Project")
+    st.markdown("🛠️ **Built from scratch by [Your Name]**")
+    st.markdown(
+        "- Custom **PyTorch Transformer** (GPT-style, decoder-only)\n"
+        "- **Character-level** next-token prediction\n"
+        f"- **~{n_params / 1e6:.1f}M parameters**, vocab size {vocab_size}\n"
+        "- Trained from scratch on *Bulfinch's Mythology*\n"
+        "- Q&A format achieved via hidden few-shot prompting"
+    )
+    st.caption("Base model, not instruction-tuned: answers are in the book's style and may be imprecise.")
+    st.divider()
+    st.subheader("Try it out")
+    for q in ["Who is Zeus?", "What is Olympus?", "Who was Hercules?"]:
+        if st.button(q, use_container_width=True):
+            st.session_state.pending = q
+    if st.button("Clear chat", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.pending = None
+        st.rerun()
 
 for message in st.session_state.messages:
     with st.chat_message(message['role']):
         st.markdown(message['content'])
 
-if user_msg := st.chat_input("Ask a question about mythology..."):
+user_msg = st.chat_input("Ask a question about mythology...")
+if st.session_state.pending:
+    user_msg = st.session_state.pending
+    st.session_state.pending = None
+
+if user_msg:
     st.session_state.messages.append({'role': 'user', 'content': user_msg})
     with st.chat_message('user'):
         st.markdown(user_msg)
