@@ -22,9 +22,9 @@ A ~10.8M-parameter decoder-only Transformer, written in PyTorch and trained from
 | Vocabulary | 90 characters (character-level, no BPE) |
 | Dropout | 0.2 |
 | Parameters | 10,808,154 (10.81M) |
-| Checkpoint | `state_dict`, 52.75 MB (includes causal-mask buffers) |
+| Default checkpoint | `checkpoints/mythology_model_v2.pt` (`state_dict`, 52.75 MB, includes causal-mask buffers) |
 
-Training setup (from `experiments/02_gpt_v2.py`, defaults of `train.py`): AdamW, learning rate 3e-4, batch size 64, 5000 iterations, seed 1337.
+Training setup (defaults of `train.py`): AdamW, learning rate 3e-4, batch size 64, up to 5000 iterations, seed 1337, evaluation every 250 steps (200 batches per split), early stopping with patience 6. The v2 run used CUDA on an RTX 4060 Laptop GPU.
 
 ## Dataset
 
@@ -32,101 +32,118 @@ Bulfinch's *Mythology* (public domain), in `data/input.txt`: 839,083 characters,
 
 ## Results
 
-Loss measured on the shipped checkpoint with `python evaluate.py --eval_iters 40 --batch_size 32` (seed 1337, random 256-character windows):
+![Training and validation loss](assets/loss_curve.png)
 
-| Split | Cross-entropy loss |
-|---|---|
-| Train | 0.7035 |
-| Val | 2.2389 |
+| Checkpoint | Train loss | Val loss | Selected how |
+|---|---|---|---|
+| v1 `mythology_model.pt` (original) | 0.7035 | 2.2389 | final weights of a 5000-step run |
+| **v2 `mythology_model_v2.pt` (default)** | 1.1476 | **1.8911** | best val loss during training (step 2000) |
 
-The large gap shows **heavy overfitting**: the model has memorised much of the small training text. No training-time loss log was saved for this checkpoint, so there is no loss curve yet. Re-run training (see below) and then `python plot_loss.py` to produce `assets/loss_curve.png`. Note the evaluation above assumes the checkpoint was trained on the same 90/10 split as the dev script.
+Both rows come from `python evaluate.py --checkpoint <ckpt> --eval_iters 40 --batch_size 32` (seed 1337, random 256-character windows). The v1 row assumes that checkpoint was trained on the same 90/10 split. During training v2's logged best was val 1.8840 (train 1.1537) at step 2000 (`checkpoints/mythology_model_v2_loss.csv`); the evaluate numbers differ slightly because they use different random windows.
+
+The validation set was also used to choose the v2 checkpoint and the stopping point, so the v2 val number is slightly optimistic. There is no separate test set.
+
+## Overfitting
+
+The original checkpoint (v1) trained for a fixed 5000 steps and kept the final weights. By the end it had memorised much of the small training text: train loss 0.70 versus val loss 2.24.
+
+The v2 run keeps the architecture, dropout and hyperparameters identical and changes only how training is stopped and which weights are kept:
+
+- Evaluate every 250 steps and save weights only when val loss improves.
+- Stop after 6 evaluations with no improvement.
+
+In the loss curve, val loss reaches its minimum (1.8840) at step 2000 and then rises while train loss keeps falling (0.91 by step 3500), which is the classic overfitting signature. Training stopped at step 3500 and the step-2000 weights were kept. Result: val loss 2.24 to 1.89 (about 16% lower), with a higher train loss (0.70 to 1.15), meaning less memorisation.
+
+This reduces overfitting but doesn't remove it. The root cause is about 0.84M characters of data for a 10.8M-parameter model; more data or regularisation would be needed to go further.
 
 ## Sample outputs
 
-Unedited, 300 new characters each (full set and exact settings in [assets/samples.md](assets/samples.md)). Excerpt, prompt "Zeus", temperature 0.5, top-k 40:
+Unedited, 300 new characters each (full set and exact settings in [assets/samples.md](assets/samples.md); v1 samples are kept in [assets/samples_v1.md](assets/samples_v1.md)). v2, prompt "Zeus", temperature 0.5, top-k 40:
 
 ```text
-Zeus was done in the death of the cave, and the other animals who
-consumed the lamentations of the earth. He was called the
-Golden Fleece, which proceeded to the place of Apollo and Medea
-Charlemagnelia, and descended to be considered as a rock to the
-contest. A story of Perseus and Psyche in the air we
+Zeus was done with his son who had been some seen that
+he hero contained to rest the ship of the sight. He was so a companion of
+the followers of the same sacred that the mind of the shore, and with
+his body of the early sails with the sea, which he saw the sea, she
+approached the shores of the Greeks. 
 ```
 
-Prompt "The hero set out", temperature 0.8, top-k 40:
+v2, prompt "The hero set out", temperature 0.8, top-k 40:
 
 ```text
-The hero set out upon his body to the woods to return
-to Achilles' field, and the field entered by the aid of the most
-celebrated subjects from the combatants of his mistress. He had
-a tedion of the ships of Troy the Belvedere Achilles with the Hellenic
-to Ajax, and at the Eurystheus suggesting the Furies.
+The hero set out of his banks, and viewed him from
+the Midgard, who is should be prevailed to the minotal. He old received on the
+northern he body out of the destroy and rivers, and take it with a
+serpent. He is the part of the sea, when he tried to his brother, and at
+last fell over sudden in the skilful of the Cy
 ```
 
-Prompt "In the beginning", temperature 1.2, no top-k (note the degeneration at high temperature):
+v2, prompt "In the beginning", temperature 1.2, no top-k (note the degeneration at high temperature):
 
 ```text
-In the beginning verse,
-    Raising all joy Egypt at the hunted of the ancient beast."
-
-THE AND ALATON
-
-That was a cost widen, descended from Ceyx, covered by Philoctetes,
+In the beginnings dulcomd Siegfried, and
+quitors, of all hunts. A midst enclosed with their divincies
+ensually may encountered to Thialfi, it was expeditful for couche drink.
+These king, raying to HYgmsolvemnon issued, Mrsia ambrosially
+detained by Anubis
 ```
+
+Honest note: with the same prompts and seeds, the v1 samples read as *more* fluent than v2's. That is the overfitting at work: v1 reproduces memorised phrasing from the training text, while v2 is vaguer and more generic but generalises better by validation loss.
 
 ## Quickstart
 
 ```bash
 pip install -r requirements.txt
+# For GPU training, install a CUDA build of PyTorch instead (see https://pytorch.org/get-started/locally/)
 
-# Generate text from the included checkpoint
+# Generate text from the default checkpoint (v2)
 python generate.py --prompt "Zeus" --max_new_tokens 300 --temperature 0.8 --top_k 40
 
 # Run the Gradio demo (CPU is fine)
 python app.py
 
-# Retrain (writes a new checkpoint + CSV loss log; refuses to overwrite without --force)
-python train.py --out checkpoints/run2.pt
+# Retrain (best-val checkpoint + CSV loss log; refuses to overwrite without --force)
+python train.py --out checkpoints/run3.pt
 pip install -r requirements-dev.txt
-python plot_loss.py --log checkpoints/run2_loss.csv --out assets/loss_curve.png
+python plot_loss.py --log checkpoints/run3_loss.csv --out assets/loss_curve.png
 
 # Evaluate a checkpoint
-python evaluate.py --checkpoint checkpoints/run2.pt
+python evaluate.py --checkpoint checkpoints/run3.pt
 ```
 
-Training the default config on CPU is slow (hours); a GPU is recommended.
+Training on CPU is very slow; the v2 run took about 46 minutes (to the step-3500 early stop) on an RTX 4060 Laptop GPU.
 
 ## Project structure
 
 ```
 app.py                 Gradio demo (streaming, temperature, top-k, seed)
 model.py               GPT model, config, character tokenizer, checkpoint loader
-train.py               Training script (CLI args, CSV loss log)
+train.py               Training (CLI args, best-val checkpointing, early stopping, CSV log)
 generate.py            CLI text generation
 evaluate.py            Train/val loss of a checkpoint
 plot_loss.py           Plot loss curve from a train.py log
-make_samples.py        Regenerates assets/samples.md
+make_samples.py        Regenerates a samples file from a checkpoint
 data/input.txt         Training corpus
-checkpoints/           Trained weights
+checkpoints/           v1 and v2 weights, v2 loss log
 notebooks/             Original development notebook
 experiments/           01_bigram.py, 02_gpt_v2.py (the original step-by-step scripts)
-assets/                Sample outputs (and loss curve once generated)
+assets/                Loss curve and sample outputs
 DEPLOY.md              Hugging Face Spaces deployment steps
 ```
 
 ## What I learned / limitations
 
-- **Character-level tokenization** keeps the vocabulary tiny but makes sequences long and forces the model to learn spelling; it invents plausible non-words ("tedion", "motionals").
-- **Tiny data** (about 0.84M characters) is far too little for 10.8M parameters; the train/val gap above is the result.
-- **Overfitting:** validation loss is much higher than train loss; more data, more dropout, or early stopping would help.
+- **Character-level tokenization** keeps the vocabulary tiny but makes sequences long and forces the model to learn spelling; it invents plausible non-words ("minotal", "divincies").
+- **Tiny data** (about 0.84M characters) is far too little for 10.8M parameters; the train/val gap is the result.
+- **Overfitting** is real even after early stopping (train 1.15 vs val 1.89).
 - **No instruction following:** it only continues text. Prompts like questions get book-style continuations, not answers.
-- Coherence is local (a sentence or two) and long-range facts are unreliable.
+- Coherence is local, and long-range facts are unreliable.
 
 ## Future work
 
 - BPE tokenizer instead of characters.
-- Ablations on context length and number of layers.
-- Save per-run loss logs and use early stopping / checkpoint selection on validation loss.
+- Ablations on context length, number of layers and dropout.
+- More data and stronger regularisation; hold out a separate test set.
 - Fine-tune on a small instruction set.
 
 ## Credits
