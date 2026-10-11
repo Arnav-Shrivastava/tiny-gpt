@@ -27,6 +27,8 @@ def load_model():
     # The filename contains hyphens, so load it by path. Its training code is
     # guarded by __main__, so importing does not retrain.
     spec = spec_from_file_location('tinygpt_dev_v2', os.path.join(ROOT, 'tinygpt-dev-v2.py'))
+    if spec is None or spec.loader is None:
+        raise ImportError('Could not load tinygpt-dev-v2.py')
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
 
@@ -79,7 +81,7 @@ n_params = sum(p.numel() for p in model.parameters())
 
 with st.sidebar:
     st.header("About this Project")
-    st.markdown("🛠️ **Built from scratch by [Your Name]**")
+    st.markdown("🛠️ **Built from scratch by Arnav Shrivastava**")
     st.markdown(
         "- Custom **PyTorch Transformer** (GPT-style, decoder-only)\n"
         "- **Character-level** next-token prediction\n"
